@@ -1,10 +1,14 @@
 {
-  "name": "blog-api",
+  "name": "nodejs-intro",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node-dev src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node dist/.js",
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "serve": "nodemon dist/index.js",
+    "dev:nodemon": "nodemon --exec ts-node src/index.ts"
   },
   "keywords": [],
   "author": "",
@@ -12,20 +16,24 @@
   "description": "",
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.16.0"
+    "pg": "^8.16.0",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.24"
   },
   "devDependencies": {
+    "@babel/core": "^7.27.1",
+    "@babel/node": "^7.27.1",
+    "@babel/preset-env": "^7.27.2",
     "@types/bcrypt": "^5.0.2",
-    "@types/express": "^5.0.2",
+    "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^22.15.21",
+    "@types/node": "^20.11.19",
     "@types/pg": "^8.15.2",
-    "prisma": "^6.8.2",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.8.3"
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }
