@@ -1,109 +1,128 @@
-import { Request, Response } from 'express';
-import pool from '../db';
+import { Request, Response } from "express";
+import { AppDataSource } from "../config/db";
+import { Post } from "../entities/Post";
+import { User } from "../entities/User";
+// import { validateEntity } from "../utils/validate";
 
-export const createPost = async (req: Request, res: Response): Promise<void> => {
-  const userId = (req as any).userId;
-  const { title, body } = req.body;
+const postRepository = AppDataSource.getRepository(Post);
+const userRepository = AppDataSource.getRepository(User);
 
-  if (!title || !body) {
-    res.status(400).json({ error: 'Title and body are required' });
-    return;
-  }
-
+export const getAllPosts = async (_req: Request, res: Response) => {
   try {
-    const result = await pool.query(
-      'INSERT INTO posts (title, body, author_id) VALUES ($1, $2, $3) RETURNING *',
-      [title, body, userId]
-    );
-    res.status(201).json({ message: 'Post created', post: result.rows[0] });
-  } catch (err) {
-    console.error('Create Post Error:', err);
-    res.status(500).json({ error: 'Server error' });
+    const posts = await postRepository.find({
+      relations: ["user"],
+      order: { createdAt: "DESC" },
+    });
+    res.json(posts);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-export const getAllPosts = async (req: Request, res: Response): Promise<void> => {
+export const getPostById = async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(
-      `SELECT posts.*, users.username FROM posts
-       JOIN users ON posts.author_id = users.id
-       ORDER BY posts.created_at DESC`
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Get Posts Error:', err);
-    res.status(500).json({ error: 'Server error' });
+    const post = await postRepository.findOne({
+      where: { id: parseInt(req.params.id) },
+      relations: ["user"],
+    });
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    res.json(post);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-export const getPostById = async (req: Request, res: Response): Promise<void> => {
-  const postId = req.params.id;
-
+export const createPost = async (req: Request, res: Response) => {
   try {
-    const result = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
-
-    if (result.rowCount === 0) {
-      res.status(404).json({ error: 'Post not found' });
-    } else {
-      res.json(result.rows[0]);
+    // Ensure the user is authenticated and the user id exists in the request
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized: User not found in request" });
     }
-  } catch (err) {
-    console.error('Get Post Error:', err);
-    res.status(500).json({ error: 'Server error' });
+
+    // Validate title and content
+    const { title, content } = req.body;
+    if (!title || typeof title !== "string") {
+      return res.status(400).json({ message: "Invalid or missing title" });
+    }
+    if (!content || typeof content !== "string") {
+      return res.status(400).json({ message: "Invalid or missing content" });
+    }
+
+    const user = await userRepository.findOneBy({ id: req.user.id });
+    if (!user) return res.status(401).json({ message: "User not found" });
+
+    const post = new Post();
+    post.title = title;
+    post.content = content;
+    post.user = user;
+
+    await postRepository.save(post);
+    res.status(201).json(post);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
   }
 };
 
-export const updatePost = async (req: Request, res: Response): Promise<void> => {
-  const postId = req.params.id;
-  const userId = (req as any).userId;
-  const { title, body } = req.body;
-
+export const updatePost = async (req: Request, res: Response) => {
   try {
-    const post = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
-
-    if (post.rowCount === 0) {
-      res.status(404).json({ error: 'Post not found' });
-      return;
+    const postId = parseInt(req.params.id);
+    if (isNaN(postId)) {
+      return res.status(400).json({ message: "Invalid post id" });
     }
 
-    if (post.rows[0].author_id !== userId) {
-      res.status(403).json({ error: 'You are not the owner of this post' });
-      return;
+    const post = await postRepository.findOne({
+      where: { id: postId },
+      relations: ["user"],
+    });
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    // Ensure the user is authenticated and the user id exists in the request
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized: User not found in request" });
     }
 
-    const updated = await pool.query(
-      'UPDATE posts SET title = $1, body = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
-      [title, body, postId]
-    );
+    if (post.user.id !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
 
-    res.json({ message: 'Post updated', post: updated.rows[0] });
-  } catch (err) {
-    console.error('Update Post Error:', err);
-    res.status(500).json({ error: 'Server error' });
+    const { title, content } = req.body;
+    if (title && typeof title === "string") post.title = title;
+    if (content && typeof content === "string") post.content = content;
+
+    await postRepository.save(post);
+    res.json(post);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
   }
 };
 
-export const deletePost = async (req: Request, res: Response): Promise<void> => {
-  const postId = req.params.id;
-  const userId = (req as any).userId;
-
+export const deletePost = async (req: Request, res: Response) => {
   try {
-    const post = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
-
-    if (post.rowCount === 0) {
-      res.status(404).json({ error: 'Post not found' });
-      return;
+    const postId = parseInt(req.params.id);
+    if (isNaN(postId)) {
+      return res.status(400).json({ message: "Invalid post id" });
     }
 
-    if (post.rows[0].author_id !== userId) {
-      res.status(403).json({ error: 'You are not the owner of this post' });
-      return;
+    const post = await postRepository.findOne({
+      where: { id: postId },
+      relations: ["user"],
+    });
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    // Ensure the user is authenticated and the user id exists in the request
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized: User not found in request" });
     }
 
-    await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
-    res.json({ message: 'Post deleted' });
-  } catch (err) {
-    console.error('Delete Post Error:', err);
-    res.status(500).json({ error: 'Server error' });
+    if (post.user.id !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    await postRepository.remove(post);
+    res.json({ message: "Post deleted successfully" });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
 };

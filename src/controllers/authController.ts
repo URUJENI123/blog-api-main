@@ -1,109 +1,203 @@
-// src/controllers/authController.ts
-import { Request, Response } from "express";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import pool from "../db";
+import { NextFunction, Request, RequestHandler, Response} from 'express';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
-const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
+import { UserService } from '../services/UserServices';
+
+import { generateJWT, generateResetToken, generateVerifyToken } from '../utils/jwt';
+import { sendResetPasswordEmail, sendVerificationEmail } from '../utils/email';
+import { asyncHandler } from '../middlewares/errorHandler';
+
+import { 
+    SignupInput, 
+    LoginInput, 
+    ForgotPasswordInput, 
+    ResetPasswordInput, 
+    VerifyEmailInput 
+  } from '../schema/authSchemas';
+  import { AuthenticatedRequest, ApiResponse } from '../types/commonTypes';
+  import { ConflictError, NotFoundError, UnauthorizedError, ForbiddenError } from '../utils/errors';
+
+const userService = new UserService();
 
 // Register User
-export const registerUser = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { username, email, password } = req.body;
+export const registerUser = asyncHandler(async (
+    req: AuthenticatedRequest & SignupInput, 
+    res: Response<ApiResponse>,
+    next: NextFunction
+) => {
+        const { name, email, password, role } = req.body;
 
-  if (!username || !email || !password) {
-    res.status(400).json({ error: "All fields are required" });
-    return;
-  }
+        const existingUser = await userService.findByEmail(email);
 
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+        if (existingUser) {
+            throw new ConflictError('User with this email already exists');
+        }
 
-    const result = await pool.query(
-      "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email",
-      [username, email, hashedPassword]
-    );
+        const newUser = await userService.create({ name, email, password });
+        const token = generateVerifyToken({ userId: newUser.id, email: newUser.email });
+        const verifyLink = `${process.env.FRONTEND_URL}/verify-email/${token}`;
 
-    const user = result.rows[0];
+       await sendVerificationEmail(newUser.email, verifyLink);
+       
+       res.status(201).json({
+        success: true,
+        message: 'User created successfully. Please check your email and verify your account.',
+        data: {
+          user: {
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email
+          }
+        }
+      });
+}) as RequestHandler;
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: "1h",
-    });
-
-    res.status(201).json({
-      message: "User registered",
-      user,
-      token,
-    });
-  } catch (err: any) {
-    console.error("Register Error:", err);
-    if (err.code === "23505") {
-      // PostgreSQL Unique Violation
-      res.status(400).json({ error: "Username or email already exists" });
-    } else {
-      res.status(500).json({ error: "Server error" });
+// Verify Email
+export const verifyEmail = asyncHandler(async (
+    req: AuthenticatedRequest & VerifyEmailInput, 
+    res: Response<ApiResponse>,
+    next: NextFunction
+  ) => {
+    const { token } = req.params;
+  
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: number };
+    const user = await userService.findById(payload.userId);
+    
+    if (!user) {
+      throw new NotFoundError('User');
     }
-  }
-};
+  
+    if (user.isEmailVerified) {
+      throw new ConflictError('Email is already verified');
+    }
+  
+    await userService.update(user.id, { isEmailVerified: true });
+  
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully'
+    });
+  });
 
 // Login User
-export const loginUser = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
-
-  try {
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
-
-    if (result.rowCount === 0) {
-      res.status(401).json({ error: "Invalid credentials" });
-      return;
+export const loginUser = asyncHandler(async (
+    req: AuthenticatedRequest & LoginInput, 
+    res: Response<ApiResponse>,
+    next: NextFunction
+  ) => {
+    const { email, password } = req.body;
+  
+    const user = await userService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedError('Invalid email or password');
     }
 
-    const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match) {
-      res.status(401).json({ error: "Invalid credentials" });
-      return;
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      throw new UnauthorizedError('Invalid email or password');
     }
-
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: "1h",
-    });
-
+  
+    if (!user.isEmailVerified) {
+      throw new ForbiddenError('Please verify your email before logging in');
+    }
+  
+    if (!user.isActive) {
+      throw new ForbiddenError('Your account has been deactivated');
+    }
+  
+    const token = generateJWT(user);
+  
     res.json({
-      message: "Login successful",
-      token,
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: { 
+          id: user.id, 
+          name: user.name, 
+          email: user.email
+        },
+        token
+      }
     });
-  } catch (err) {
-    console.error("Login Error:", err);
-    res.status(500).json({ error: "Server error" });
+  });
+
+// Get Profile
+export const getProfile = asyncHandler(async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    throw new UnauthorizedError('User not authenticated');
   }
-};
 
-// Get User Profile
-export const getProfile = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const userId = (req as any).userId;
+  const user = await userService.findById(userId);
+  if (!user) {
+    throw new NotFoundError('User');
+  }
 
-  try {
-    const result = await pool.query(
-      "SELECT id, username, email FROM users WHERE id = $1",
-      [userId]
-    );
-
-    if (result.rowCount === 0) {
-      res.status(404).json({ error: "User not found" });
-    } else {
-      res.json(result.rows[0]);
+  res.status(200).json({
+    success: true,
+    message: 'User profile retrieved successfully',
+    data: {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isEmailVerified: user.isEmailVerified,
+        isActive: user.isActive,
+      }
     }
-  } catch (err) {
-    console.error("Profile Error:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-};
+  });
+});
+
+//forgot Password
+export const forgotPassword = asyncHandler(async (
+    req: AuthenticatedRequest & ForgotPasswordInput, 
+    res: Response<ApiResponse>,
+    next: NextFunction
+  ) => {
+    const { email } = req.body;
+  
+    const user = await userService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundError('No user found with that email address');
+    }
+  
+    const token = generateResetToken(user.email);
+    const resetLink = `${process.env.RESET_PASSWORD_URL}/${token}`;
+  
+    await sendResetPasswordEmail(email, resetLink);
+  
+    res.status(200).json({
+      success: true,
+      message: 'Password reset link sent to your email'
+    });
+  });
+
+// Reset Password
+export const resetPassword = asyncHandler(async (
+    req: AuthenticatedRequest & ResetPasswordInput, 
+    res: Response<ApiResponse>,
+    next: NextFunction
+  ) => {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+  
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { email: string };
+    const user = await userService.findByEmail(decoded.email);
+  
+    if (!user) {
+      throw new NotFoundError('User');
+    }
+  
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await userService.update(user.id, { password: hashedPassword });
+  
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  });

@@ -1,25 +1,36 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'defaultsecret';
+interface JwtPayload {
+  id: number;
+  email: string;
+  role: 'user' | 'admin';
+  iat: number;
+  exp: number;
+}
 
-const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+interface AuthRequest extends Request {
+  user?: JwtPayload;
+}
+
+export const authenticated = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Unauthorized' });
+  const token = authHeader?.split(' ')[1];
+  
+  if (!token) {
+    res.status(401).json({ message: 'You are not authorized' });
     return;
   }
-
-  const token = authHeader.split(' ')[1];
-
+  
   try {
-    const decoded: any = jwt.verify(token, JWT_SECRET);
-    (req as any).userId = decoded.userId;
-    next(); // continue to the next route handler
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    req.user = decoded;
+    next();
   } catch (err) {
-    res.status(403).json({ error: 'Invalid token' });
+    res.status(403).json({ message: 'Token is expired or inavalid' });
   }
 };
-
-export default authMiddleware;

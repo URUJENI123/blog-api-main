@@ -1,16 +1,15 @@
-// src/routes/authRoutes.ts
 import express from "express";
 import {
   registerUser,
   loginUser,
   getProfile,
 } from "../controllers/authController";
-import authMiddleware from "../middlewares/authMiddleware";
+import  { errorHandler } from "../middlewares/errorHandler";
 
 const router = express.Router();
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.get("/profile", authMiddleware, getProfile);
+router.get("/profile", errorHandler, getProfile);
 
 export default router;
