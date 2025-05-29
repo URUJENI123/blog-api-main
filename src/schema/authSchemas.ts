@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { emailSchema, passwordSchema, nameSchema } from "./commonSchemas";
 
-export const signupSchema = z.object({
+export const registerSchema = z.object({
   body: z.object({
     name: nameSchema,
     email: emailSchema,
@@ -38,8 +38,10 @@ export const verifyEmailSchema = z.object({
   }),
 });
 
-export type SignupInput = z.infer<typeof signupSchema>;
-export type LoginInput = z.infer<typeof loginSchema>;
-export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
-export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+// Flattened types
+export type RegisterInput = z.infer<typeof registerSchema.shape.body>;
+export type LoginInput = z.infer<typeof loginSchema.shape.body>;
+export type  ForgotPasswordInput = z.infer<typeof forgotPasswordSchema.shape.body>;
+export type ResetPasswordParams = z.infer<typeof resetPasswordSchema.shape.params>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema.shape.body>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema.shape.params>;

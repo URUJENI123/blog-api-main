@@ -1,54 +1,45 @@
-import { Request, Response, NextFunction } from 'express';
-import { z, ZodError } from 'zod';
-import { ValidationError } from '../utils/errors';
+// validationMiddleware.ts
+import { Request, Response, NextFunction } from "express";
+import { z, ZodError } from "zod";
+import { ValidationError } from "../utils/errors";
 
-export const validate = (schema: z.ZodSchema) => {
-    return (req: Request, res: Response, next: NextFunction) => {
-        try {
-            schema.parse({
-              body: req.body,
-              query: req.query,
-              params: req.params
-            });
-            next();
-          } catch (error) {
-            if (error instanceof ZodError) {
-              const errors: Record<string, string[]> = {};
-              
-              error.errors.forEach((err) => {
-                const path = err.path.slice(1).join('.');
-                if (!errors[path]) {
-                  errors[path] = [];
-                }
-                errors[path].push(err.message);
-              });
-      
-              next(new ValidationError(errors));
-            } else {
-              next(error);
-            }
-          }
+// Directly augment Request interface here
+declare global {
+  namespace Express {
+    interface Request {
+      validatedQuery?: any; // Direct augmentation for testing
     }
+  }
 }
 
-//function that will help us validate out data 
-export const validateData = <T>(schema: z.ZodSchema<T>, data: unknown): T => {
+export const validate = (schema: z.ZodSchema) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
-      return schema.parse(data);
+      const parsed = schema.parse({
+        body: req.body,
+        query: req.query,
+        params: req.params,
+      });
+
+      req.body = parsed.body;
+      req.params = parsed.params;
+      req.validatedQuery = parsed.query;
+
+      next();
     } catch (error) {
       if (error instanceof ZodError) {
         const errors: Record<string, string[]> = {};
-        
         error.errors.forEach((err) => {
-          const path = err.path.join('.');
+          const path = err.path.join(".");
           if (!errors[path]) {
             errors[path] = [];
           }
           errors[path].push(err.message);
         });
-  
-        throw new ValidationError(errors);
+        next(new ValidationError(errors));
+      } else {
+        next(error);
       }
-      throw error;
     }
   };
+};

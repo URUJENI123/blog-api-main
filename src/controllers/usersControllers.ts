@@ -1,13 +1,13 @@
 import { Response, NextFunction } from 'express';
-import { UserService } from '../services/users.service';
-import { asyncHandler } from '../middleware/errorHandler';
+import { UserService } from '../services/UserServices';
+import { asyncHandler } from '../middlewares/errorHandler';
 import { 
   UpdateUserInput, 
   GetUserByIdInput, 
   SearchUsersInput, 
   DeleteUserInput 
-} from '../schema/user.schemas';
-import { AuthenticatedRequest, ApiResponse } from '../types/common.types';
+} from '../schema/userSchema';
+import { AuthenticatedRequest, ApiResponse } from '../types/commonTypes';
 import { NotFoundError, ConflictError } from '../utils/errors';
 
 const userService = new UserService();

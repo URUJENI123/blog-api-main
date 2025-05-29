@@ -1,9 +1,15 @@
-import { User } from "../../entities/User";
+import * as express from 'express';
+import { User } from '../../entities/User';
+
+console.log('Types are loaded!')
 
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: number } | User;
+      validatedQuery?: any;
+      user?: User;
     }
   }
 }
+
+export {};

@@ -32,4 +32,8 @@ export class Token {
 
   @CreateDateColumn()
   createdAt!: Date;
-}
+
+  // @Index("unique_user_token_type", ["userId", "type"])
+  // @UniqueConstraint(["userId", "type"])
+  }
+

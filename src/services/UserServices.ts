@@ -1,6 +1,6 @@
-// src/services/UserService.ts
 import { User } from '../entities/User';
 import { UserRepository } from '../repositories/UserRepository';
+import bcrypt from 'bcrypt';
 
 export class UserService {
   async findAll(): Promise<User[]> {
@@ -29,5 +29,17 @@ export class UserService {
 
   async delete(id: number): Promise<boolean> {
     return UserRepository.deleteUser(id);
+  }
+
+  async login(email: string, password: string): Promise<User | null> {
+    const user = await this.findByEmail(email);
+    if (!user) {
+      return null;
+    }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return null;
+    }
+    return user;
   }
 }

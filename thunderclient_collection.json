@@ -1,0 +1,113 @@
+{
+  "version": "1.1",
+  "requests": [
+    {
+      "name": "Register User - Happy Path",
+      "url": "http://localhost:5000/auth/register",
+      "method": "POST",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": {
+          "name": "Test User",
+          "email": "testuser@example.com",
+          "password": "TestPassword123",
+          "role": "user"
+        }
+      }
+    },
+    {
+      "name": "Login User - Happy Path",
+      "url": "http://localhost:5000/auth/login",
+      "method": "POST",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": {
+          "email": "testuser@example.com",
+          "password": "TestPassword123"
+        }
+      },
+      "tests": "const response = JSON.parse(responseBody);\nif (response.success && response.data && response.data.token) {\n  client.global.set(\"token\", response.data.token);\n}"
+    },
+    {
+      "name": "Get Profile - Authenticated",
+      "url": "http://localhost:5000/auth/profile",
+      "method": "GET",
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer {{token}}"
+        }
+      ]
+    },
+    {
+      "name": "Get All Users",
+      "url": "http://localhost:5000/users",
+      "method": "GET"
+    },
+    {
+      "name": "Search Users by Name",
+      "url": "http://localhost:5000/users/search?name=Test",
+      "method": "GET"
+    },
+    {
+      "name": "Get User by ID",
+      "url": "http://localhost:5000/users/1",
+      "method": "GET"
+    },
+    {
+      "name": "Create User",
+      "url": "http://localhost:5000/users",
+      "method": "POST",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": {
+          "name": "New User",
+          "email": "newuser@example.com",
+          "password": "NewUserPass123",
+          "role": "user"
+        }
+      }
+    },
+    {
+      "name": "Update User",
+      "url": "http://localhost:5000/users/1",
+      "method": "PUT",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": {
+          "name": "Updated User",
+          "email": "updateduser@example.com"
+        }
+      }
+    },
+    {
+      "name": "Delete User",
+      "url": "http://localhost:5000/users/1",
+      "method": "DELETE"
+    }
+  ]
+}

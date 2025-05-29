@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { AppDataSource } from "../config/db";
 import { Post } from "../entities/Post";
 import { User } from "../entities/User";
-// import { validateEntity } from "../utils/validate";
 
 const postRepository = AppDataSource.getRepository(Post);
 const userRepository = AppDataSource.getRepository(User);

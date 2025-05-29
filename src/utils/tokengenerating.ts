@@ -4,6 +4,7 @@ import { User } from "../entities/User";
 export interface VerifyPayload {
   userId: number;
   email: string;
+  
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || "";
@@ -14,7 +15,7 @@ export function generateJWT(user: User): string {
       id: user.id,
       email: user.email,
       name: user.name,
-    //   role: user.role,
+      // role: user.role,
     },
     JWT_SECRET,
     { expiresIn: "1h" }
