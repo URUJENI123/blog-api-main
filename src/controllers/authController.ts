@@ -32,11 +32,17 @@ const authService = new AuthService();
 const userService = new UserService();
 
 //Create users
-import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema } from "../schema/authSchemas";
+import {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+} from "../schema/authSchemas";
 
 export const signup = asyncHandler(
   async (
-    req: Request<{}, {}, typeof registerSchema._type["body"]>,
+    req: Request<{}, {}, (typeof registerSchema._type)["body"]>,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {
@@ -53,7 +59,7 @@ export const signup = asyncHandler(
       userId: newUser.id,
       email: newUser.email,
     });
-    const verifyLink = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+    const verifyLink = `${process.env.FRONTEND_URL|| 'localhost:5000'}/verify-email/${token}`;
 
     await sendVerificationEmail(newUser.email, verifyLink);
 
@@ -75,7 +81,7 @@ export const signup = asyncHandler(
 //Verify email
 export const verifyEmail = asyncHandler(
   async (
-    req: Request<typeof verifyEmailSchema._type["params"]>,
+    req: Request<(typeof verifyEmailSchema._type)["params"]>,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {
@@ -106,7 +112,7 @@ export const verifyEmail = asyncHandler(
 //Login
 export const login = asyncHandler(
   async (
-    req: Request<{}, {}, typeof loginSchema._type["body"]>,
+    req: Request<{}, {}, (typeof loginSchema._type)["body"]>,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {
@@ -145,7 +151,7 @@ export const login = asyncHandler(
 //forgot Password
 export const forgotPassword = asyncHandler(
   async (
-    req: Request<{}, {}, typeof forgotPasswordSchema._type["body"]>,
+    req: Request<{}, {}, (typeof forgotPasswordSchema._type)["body"]>,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {
@@ -171,7 +177,11 @@ export const forgotPassword = asyncHandler(
 // Reset Password
 export const resetPassword = asyncHandler(
   async (
-    req: Request<typeof resetPasswordSchema._type["params"], {}, typeof resetPasswordSchema._type["body"]>,
+    req: Request<
+      (typeof resetPasswordSchema._type)["params"],
+      {},
+      (typeof resetPasswordSchema._type)["body"]
+    >,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {

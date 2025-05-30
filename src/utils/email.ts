@@ -10,6 +10,7 @@ export async function sendVerificationEmail(email: string, link: string) {
       <h2>Welcome!</h2>
       <p>Click below to verify your email:</p>
       <a href="${link}">${link}</a>
+
       <p>This link expires in 24 hours.</p>
     `,
   });
