@@ -1,6 +1,7 @@
 
 import { AppDataSource } from "../config/db";
 import { User } from "../entities/User";
+import bcrypt from "bcrypt";
 
 export const UserRepository = AppDataSource.getRepository(User).extend({
   async findByName(name: string): Promise<User[]> {
@@ -18,8 +19,11 @@ export const UserRepository = AppDataSource.getRepository(User).extend({
   },
 
   async createUser(userData: Partial<User>): Promise<User> {
-    const user = this.create(userData);
-    return this.save(user);
+    if (userData.password) {
+     userData.password = await bcrypt.hash(userData.password, 10);
+    }
+    const newUser = this.create(userData);
+    return this.save(newUser);
   },
 
   async updateUser(id: number, userData: Partial<User>): Promise<User | null> {

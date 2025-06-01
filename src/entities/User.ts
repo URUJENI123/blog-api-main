@@ -37,4 +37,5 @@ export class User {
   // Establishing a one-to-many relation with Post
   @OneToMany(() => Post, (post) => post.user)
   posts!: Post[];
+  role: any;
 }

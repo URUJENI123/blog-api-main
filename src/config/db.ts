@@ -1,9 +1,8 @@
-// src/config/database.ts
-
 import { DataSource } from "typeorm";
 import * as dotenv from "dotenv";
 import { User } from "../entities/User";
 import { Post } from "../entities/Post";
+import { Token } from "../entities/Token";
 
 dotenv.config();
 
@@ -16,7 +15,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || "user_management",
   synchronize: process.env.NODE_ENV !== "production", // Auto-create database schema in development.
   logging: process.env.NODE_ENV !== "production",
-  entities: [User, Post],
+  entities: [User, Post, Token],
   migrations: ["src/migrations/**/*.ts"],
   subscribers: ["src/subscribers/**/*.ts"],
 });

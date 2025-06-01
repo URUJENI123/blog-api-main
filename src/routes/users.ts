@@ -8,22 +8,19 @@ import {
   updateUser,
   deleteUser,
 } from "../controllers/usersControllers";
+import { validate } from "../middlewares/validationMiddleware";
+import { authorize } from "../middlewares/authorize";
+import { authenticated } from "../middlewares/authMiddleware";
+import { getUserByIdSchema, updateUserSchema, deleteUserSchema, searchUsersSchema } from "../schema/userSchema";
 
 const router: Router = express.Router();
 
-// GET all users
-router.get("/", getAllUsers);
-
-// GET /users/search
-router.get("/search", search);
-
-// GET user by ID
-router.get("/:id", getById);
-
-// PUT update user
-router.put("/:id", updateUser);
-
-// DELETE user
-router.delete("/:id", deleteUser);
+router.get('/search', validate(searchUsersSchema), search);
+// router.use(authenticated);
+router.get('/:id', validate(getUserByIdSchema), getById);
+router.get('/', authorize(['admin']), getAllUsers);
+router.get('/', authorize(['admin']), validate(updateUserSchema), updateUser);// only admin can update user
+router.put('/:id', authorize(['admin']), validate(updateUserSchema), updateUser);
+router.delete('/:id', authorize(['admin']), validate(deleteUserSchema), deleteUser);
 
 export default router;

@@ -1,27 +1,33 @@
 import { User } from "../entities/User";
 import { Token, TokenType } from "../entities/Token";
-import { UserRepository } from "../repositories/UserRepository";
 import { AppDataSource } from "../config/db";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
-import bcrypt from "bcrypt";
+import { UserService } from "./UserServices";
 
 const tokenRepository = AppDataSource.getRepository(Token);
 
 export class AuthService {
   private transporter;
+  private userService: UserService;
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      // Configure your email service here
-    //   host: process.env.EMAIL_HOST || "smtp.example.com",
-    //   port: Number(process.env.SMTP_PORT) || 587,
+      host: process.env.EMAIL_HOST || "smtp.example.com",
+      port: parseInt(process.env.EMAIL_PORT || "587"),
       secure: false,
       auth: {
         user: process.env.EMAIL_USER || "user@example.com",
         pass: process.env.EMAIL_PASS || "password",
       },
     });
+    this.userService = new UserService();
+  }
+
+  async create({ name, email, password, role = "USER" }: { name: string; email: string; password: string; role?: string }) {
+    console.log("Creating user with email", email);
+    console.log("Raw password before hashing:", password);
+    return await this.userService.create({ name, email, password, role });
   }
 
   async generateToken(
@@ -99,8 +105,7 @@ export class AuthService {
     const token = await this.verifyToken(tokenString, TokenType.PASSWORD_RESET);
     if (!token) return false;
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await UserRepository.updateUser(token.userId, { password: hashedPassword });
+    await this.userService.update(token.userId, { password: newPassword });
 
     await this.markTokenUsed(token);
     return true;

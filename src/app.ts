@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import express, { Express, NextFunction, Request, Response } from "express";
+import express, { Express } from "express";
 import * as dotenv from "dotenv";
 import usersRouter from "./routes/users";
 import { initializeDatabase } from "./config/db";

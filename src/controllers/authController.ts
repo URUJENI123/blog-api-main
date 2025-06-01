@@ -5,14 +5,9 @@ import bcrypt from "bcrypt";
 import { AuthService } from "../services/AuthService";
 import { UserService } from "../services/UserServices";
 
-import {
-  generateJWT,
-  generateResetToken,
-  generateVerifyToken,
-} from "../utils/jwt";
+import { generateJWT, generateResetToken, generateVerifyToken } from "../utils/jwt";
 import { sendResetPasswordEmail, sendVerificationEmail } from "../utils/email";
-import { asyncHandler } from "../middlewares/errorHandler";
-
+  import { asyncHandler } from "../middlewares/errorHandler";
 import {
   RegisterInput,
   LoginInput,
@@ -20,7 +15,8 @@ import {
   ResetPasswordInput,
   VerifyEmailInput,
 } from "../schema/authSchemas";
-import { ApiResponse } from "../types/commonTypes";
+
+import { ApiResponse, AuthenticatedRequest } from "../types/commonTypes";
 import {
   ConflictError,
   NotFoundError,
@@ -28,25 +24,20 @@ import {
   ForbiddenError,
 } from "../utils/errors";
 
+
+
 const authService = new AuthService();
 const userService = new UserService();
 
-//Create users
-import {
-  registerSchema,
-  loginSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
-  verifyEmailSchema,
-} from "../schema/authSchemas";
+
 
 export const signup = asyncHandler(
   async (
-    req: Request<{}, {}, (typeof registerSchema._type)["body"]>,
+    req: AuthenticatedRequest & RegisterInput,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     const existingUser = await userService.findByEmail(email);
 
@@ -54,14 +45,11 @@ export const signup = asyncHandler(
       throw new ConflictError("User with this email already exists");
     }
 
-    const newUser = await userService.create({ name, email, password });
-    const token = generateVerifyToken({
-      userId: newUser.id,
-      email: newUser.email,
-    });
-    const verifyLink = `${process.env.FRONTEND_URL|| 'localhost:5000'}/verify-email/${token}`;
-
+    const newUser = await authService.create({ name, email, password });
+    const token = generateVerifyToken({ userId: newUser.id, email: newUser.email });
+    const verifyLink = `${process.env.FRONTEND_URL}/auth/verify-email/${token}`;
     await sendVerificationEmail(newUser.email, verifyLink);
+
 
     res.status(201).json({
       success: true,
@@ -72,6 +60,7 @@ export const signup = asyncHandler(
           id: newUser.id,
           name: newUser.name,
           email: newUser.email,
+          role: newUser.role,
         },
       },
     });
@@ -81,7 +70,7 @@ export const signup = asyncHandler(
 //Verify email
 export const verifyEmail = asyncHandler(
   async (
-    req: Request<(typeof verifyEmailSchema._type)["params"]>,
+    req: AuthenticatedRequest & VerifyEmailInput,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {
@@ -110,9 +99,8 @@ export const verifyEmail = asyncHandler(
 );
 
 //Login
-export const login = asyncHandler(
-  async (
-    req: Request<{}, {}, (typeof loginSchema._type)["body"]>,
+export const login = asyncHandler(async (
+    req: AuthenticatedRequest & LoginInput,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {
@@ -141,6 +129,7 @@ export const login = asyncHandler(
           id: user.id,
           name: user.name,
           email: user.email,
+          role: user.role,
         },
         token,
       },
@@ -151,7 +140,7 @@ export const login = asyncHandler(
 //forgot Password
 export const forgotPassword = asyncHandler(
   async (
-    req: Request<{}, {}, (typeof forgotPasswordSchema._type)["body"]>,
+    req: AuthenticatedRequest & ForgotPasswordInput,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {
@@ -162,10 +151,10 @@ export const forgotPassword = asyncHandler(
       throw new NotFoundError("User");
     }
 
-    const resetToken = generateResetToken(user.email);
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const Token = generateResetToken(user.email);
+    const resetLink = `${process.env.RESET_PASSWORD_URL}/${Token}`;
 
-    await sendResetPasswordEmail(user.email, resetLink);
+    await sendResetPasswordEmail(email, resetLink);
 
     res.status(200).json({
       success: true,
@@ -177,11 +166,7 @@ export const forgotPassword = asyncHandler(
 // Reset Password
 export const resetPassword = asyncHandler(
   async (
-    req: Request<
-      (typeof resetPasswordSchema._type)["params"],
-      {},
-      (typeof resetPasswordSchema._type)["body"]
-    >,
+    req: AuthenticatedRequest & ResetPasswordInput,
     res: Response<ApiResponse>,
     next: NextFunction
   ) => {
