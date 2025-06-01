@@ -34,3 +34,15 @@ export const authenticated = (
     res.status(403).json({ message: 'Token is expired or inavalid' });
   }
 };
+
+
+// export const requireAdmin = (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   if (req.userRole !== "admin") {
+//     return res.status(403).json({ message: "Forbidden: Admins only" });
+//   }
+//   next();
+// };

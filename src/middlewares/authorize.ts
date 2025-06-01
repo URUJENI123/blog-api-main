@@ -1,4 +1,3 @@
-// src/middleware/authorize.ts
 import { Request, Response, NextFunction, RequestHandler } from "express";
 
 interface AuthRequest extends Request {

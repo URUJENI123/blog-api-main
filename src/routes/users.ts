@@ -10,17 +10,20 @@ import {
 } from "../controllers/usersControllers";
 import { validate } from "../middlewares/validationMiddleware";
 import { authorize } from "../middlewares/authorize";
-import { authenticated } from "../middlewares/authMiddleware";
-import { getUserByIdSchema, updateUserSchema, deleteUserSchema, searchUsersSchema } from "../schema/userSchema";
+import {
+  getUserByIdSchema,
+  updateUserSchema,
+  deleteUserSchema,
+  searchUsersSchema,
+} from "../schema/userSchema";
 
 const router: Router = express.Router();
 
-router.get('/search', validate(searchUsersSchema), search);
-// router.use(authenticated);
-router.get('/:id', validate(getUserByIdSchema), getById);
-router.get('/', authorize(['admin']), getAllUsers);
-router.get('/', authorize(['admin']), validate(updateUserSchema), updateUser);// only admin can update user
-router.put('/:id', authorize(['admin']), validate(updateUserSchema), updateUser);
-router.delete('/:id', authorize(['admin']), validate(deleteUserSchema), deleteUser);
+router.get("/search", validate(searchUsersSchema), search);
+router.get("/:id", validate(getUserByIdSchema), getById);
+router.get("/", authorize(["admin"]), getAllUsers);
+router.get("/", authorize(["admin"]), validate(updateUserSchema), updateUser); // only admin can update user
+router.put("/:id",authorize(["admin"]),validate(updateUserSchema), updateUser);
+router.delete("/:id", authorize(["admin"]), validate(deleteUserSchema), deleteUser);
 
 export default router;

@@ -7,9 +7,8 @@ console.log('Types are loaded!')
 declare global {
   namespace Express {
     interface Request {
-      user?: JwtPayload;
+      user?: User | JwtPayload;
       validatedQuery?: any;
-      user?: User;
     }
   }
 }

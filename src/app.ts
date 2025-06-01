@@ -5,6 +5,7 @@ import usersRouter from "./routes/users";
 import { initializeDatabase } from "./config/db";
 import { errorHandler } from "./middlewares/errorHandler";
 import authRouter from "./routes/auth";
+import postRoutes from "./routes/postRoutes";
 
 dotenv.config();
 
@@ -16,9 +17,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-// app.use("/", indexRouter);
 app.use("/users", usersRouter);
 app.use("/auth", authRouter);
+app.use("/api", postRoutes)
 
 // Error handling middleware
 app.use(errorHandler);

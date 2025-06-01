@@ -38,4 +38,5 @@ export class User {
   @OneToMany(() => Post, (post) => post.user)
   posts!: Post[];
   role: any;
+  user_id!: number;
 }

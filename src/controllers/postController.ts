@@ -1,12 +1,15 @@
-import { Request, Response } from "express";
+import express from "express";
 import { AppDataSource } from "../config/db";
 import { Post } from "../entities/Post";
 import { User } from "../entities/User";
+import { JwtPayload } from "jsonwebtoken";
 
 const postRepository = AppDataSource.getRepository(Post);
 const userRepository = AppDataSource.getRepository(User);
 
-export const getAllPosts = async (_req: Request, res: Response) => {
+type AuthenticatedRequest = express.Request & { user?: User | JwtPayload };
+
+export const getAllPosts = async (_req: express.Request, res: express.Response) => {
   try {
     const posts = await postRepository.find({
       relations: ["user"],
@@ -18,7 +21,7 @@ export const getAllPosts = async (_req: Request, res: Response) => {
   }
 };
 
-export const getPostById = async (req: Request, res: Response) => {
+export const getPostById = async (req: AuthenticatedRequest, res: express.Response) => {
   try {
     const post = await postRepository.findOne({
       where: { id: parseInt(req.params.id) },
@@ -33,7 +36,7 @@ export const getPostById = async (req: Request, res: Response) => {
   }
 };
 
-export const createPost = async (req: Request, res: Response) => {
+export const createPost = async (req: AuthenticatedRequest, res: express.Response) => {
   try {
     // Ensure the user is authenticated and the user id exists in the request
     if (!req.user || !req.user.id) {
@@ -64,7 +67,7 @@ export const createPost = async (req: Request, res: Response) => {
   }
 };
 
-export const updatePost = async (req: Request, res: Response) => {
+export const updatePost = async (req: AuthenticatedRequest, res: express.Response) => {
   try {
     const postId = parseInt(req.params.id);
     if (isNaN(postId)) {
@@ -97,7 +100,7 @@ export const updatePost = async (req: Request, res: Response) => {
   }
 };
 
-export const deletePost = async (req: Request, res: Response) => {
+export const deletePost = async (req: AuthenticatedRequest, res: express.Response) => {
   try {
     const postId = parseInt(req.params.id);
     if (isNaN(postId)) {
