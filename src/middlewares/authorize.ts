@@ -9,7 +9,7 @@ interface AuthRequest extends Request {
 export const authorize = (
   allowedRoles: ("user" | "admin")[]
 ): RequestHandler => {
-  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+  return (req: AuthRequest, res: Response, next: NextFunction) =>  {
     // If user is not authenticated at all
     if (!req.user) {
       res.status(401).json({ message: "Not authenticated" });

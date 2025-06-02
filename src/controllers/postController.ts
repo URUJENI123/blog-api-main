@@ -1,130 +1,154 @@
-import express from "express";
-import { AppDataSource } from "../config/db";
-import { Post } from "../entities/Post";
-import { User } from "../entities/User";
-import { JwtPayload } from "jsonwebtoken";
+import { Response, NextFunction } from "express";
+import { asyncHandler } from "../middlewares/errorHandler";
+import {
+  CreatePost,
+  GetPostById,
+  DeletePost,
+  UpdatePost,
+} from "../schema/postSchema";
+import { AuthenticatedRequest, ApiResponse } from "../types/commonTypes";
+import { PostService } from "../services/PostServices";
+import { NotFoundError, ForbiddenError } from "../utils/errors";
 
-const postRepository = AppDataSource.getRepository(Post);
-const userRepository = AppDataSource.getRepository(User);
+const postService = new PostService();
 
-type AuthenticatedRequest = express.Request & { user?: User | JwtPayload };
+export const createPost = asyncHandler(
+  async (
+    req: AuthenticatedRequest & CreatePost,
+    res: Response<ApiResponse>,
+    next: NextFunction
+  ) => {
+    const { title, content } = req.body;
+    const userId = req.user?.id;
 
-export const getAllPosts = async (_req: express.Request, res: express.Response) => {
-  try {
-    const posts = await postRepository.find({
-      relations: ["user"],
-      order: { createdAt: "DESC" },
+    if (!userId) {
+      throw new ForbiddenError("You must be logged in to create a post");
+    }
+
+    const newPost = postService.create({
+      title,
+      content,
+      authorId: userId,
     });
-    res.json(posts);
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
+
+    res.status(201).json({
+      success: true,
+      message: "Post created successfully",
+      data: {
+        post: {
+          id: (await newPost).id,
+          title: (await newPost).title,
+          content: (await newPost).content,
+        },
+      },
+    });
   }
-};
+);
 
-export const getPostById = async (req: AuthenticatedRequest, res: express.Response) => {
-  try {
-    const post = await postRepository.findOne({
-      where: { id: parseInt(req.params.id) },
-      relations: ["user"],
+export const getAllPosts = asyncHandler(
+  async (
+    req: AuthenticatedRequest,
+    res: Response<ApiResponse>,
+    next: NextFunction
+  ) => {
+    const posts = await postService.findAll();
+
+    res.json({
+      success: true,
+      message: "Posts retrieved successfully",
+      data: { posts, count: posts.length },
     });
+  }
+);
+
+export const getPostById = asyncHandler(
+  async (
+    req: AuthenticatedRequest & GetPostById,
+    res: Response<ApiResponse>,
+    next: NextFunction
+  ) => {
+    const { id } = req.params;
+
+    const post = await postService.findById(id);
     if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
-    res.json(post);
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const createPost = async (req: AuthenticatedRequest, res: express.Response) => {
-  try {
-    // Ensure the user is authenticated and the user id exists in the request
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "Unauthorized: User not found in request" });
+      throw new NotFoundError("Post");
     }
 
-    // Validate title and content
-    const { title, content } = req.body;
-    if (!title || typeof title !== "string") {
-      return res.status(400).json({ message: "Invalid or missing title" });
-    }
-    if (!content || typeof content !== "string") {
-      return res.status(400).json({ message: "Invalid or missing content" });
-    }
-
-    const user = await userRepository.findOneBy({ id: req.user.id });
-    if (!user) return res.status(401).json({ message: "User not found" });
-
-    const post = new Post();
-    post.title = title;
-    post.content = content;
-    post.user = user;
-
-    await postRepository.save(post);
-    res.status(201).json(post);
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
-  }
-};
-
-export const updatePost = async (req: AuthenticatedRequest, res: express.Response) => {
-  try {
-    const postId = parseInt(req.params.id);
-    if (isNaN(postId)) {
-      return res.status(400).json({ message: "Invalid post id" });
-    }
-
-    const post = await postRepository.findOne({
-      where: { id: postId },
-      relations: ["user"],
+    res.json({
+      success: true,
+      message: "Post retrieved successfully",
+      data: { post },
     });
-    if (!post) return res.status(404).json({ message: "Post not found" });
+  }
+);
 
-    // Ensure the user is authenticated and the user id exists in the request
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "Unauthorized: User not found in request" });
-    }
-
-    if (post.user.id !== req.user.id) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-
+export const updatePost = asyncHandler(
+  async (
+    req: AuthenticatedRequest & UpdatePost,
+    res: Response<ApiResponse>,
+    next: NextFunction
+  ) => {
+    const id = parseInt(req.params.id);
     const { title, content } = req.body;
-    if (title && typeof title === "string") post.title = title;
-    if (content && typeof content === "string") post.content = content;
+    const userId = (req as any).user?.id;
 
-    await postRepository.save(post);
-    res.json(post);
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
-  }
-};
-
-export const deletePost = async (req: AuthenticatedRequest, res: express.Response) => {
-  try {
-    const postId = parseInt(req.params.id);
-    if (isNaN(postId)) {
-      return res.status(400).json({ message: "Invalid post id" });
+    if (!userId) {
+      throw new ForbiddenError("You must be logged in to update a post");
     }
 
-    const post = await postRepository.findOne({
-      where: { id: postId },
-      relations: ["user"],
+    // Check if post exists
+    const existingPost = await postService.findByIdWithUser(id);
+    if (!existingPost) {
+      throw new NotFoundError("Post");
+    }
+
+    // Check if user is the author of the post
+    if (existingPost.user?.id !== userId) {
+      throw new ForbiddenError("You can only update your own posts");
+    }
+
+    const updatedPost = await postService.update(id, { title, content });
+
+    res.json({
+      success: true,
+      message: "Post updated successfully",
+      data: { post: updatedPost },
     });
-    if (!post) return res.status(404).json({ message: "Post not found" });
-
-    // Ensure the user is authenticated and the user id exists in the request
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "Unauthorized: User not found in request" });
-    }
-
-    if (post.user.id !== req.user.id) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-
-    await postRepository.remove(post);
-    res.json({ message: "Post deleted successfully" });
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
   }
-};
+);
+
+export const deletePost = asyncHandler(
+  async (
+    req: AuthenticatedRequest & DeletePost,
+    res: Response<ApiResponse>,
+    next: NextFunction
+  ) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new ForbiddenError("You must be logged in to delete a post");
+    }
+
+    // Check if post exists
+    const existingPost = await postService.findByIdWithUser(id);
+    if (!existingPost) {
+      throw new NotFoundError("Post");
+    }
+
+    // Check if user is the author of the post
+    if (existingPost.user?.id !== userId) {
+      throw new ForbiddenError("You can only delete your own posts");
+    }
+
+    const deleted = await postService.delete(id);
+    if (!deleted) {
+      throw new Error("Failed to delete post");
+    }
+
+    res.json({
+      success: true,
+      message: "Post deleted successfully",
+    });
+  }
+);

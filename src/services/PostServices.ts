@@ -1,85 +1,43 @@
 import { AppDataSource } from "../config/db";
 import { Post } from "../entities/Post";
-import { User } from "../entities/User";
-import { ForbiddenError, NotFoundError } from "../utils/errors";
-import { validateEntity } from "../utils/validate";
 
-const postRepository = AppDataSource.getRepository(Post);
-const userRepository = AppDataSource.getRepository(User);
+export class PostService {
+  private postRepository = AppDataSource.getRepository(Post);
 
-export const getAllPostsService = async (
-  userId: string,
-  page: number = 1,
-  limit: number = 10
-) => {
-  return await postRepository.find({
-    where: { user: { user_id: Number(userId) } },
-    relations: ["user"],
-    order: { createdAt: "DESC" },
-    skip: (page - 1) * limit, // Pagination
-    take: limit, // Limit the number of posts
-  });
-};
+  async create(data: {
+    title: string;
+    content: string;
+    authorId: number;
+  }): Promise<Post> {
+    const post = this.postRepository.create(data);
+    return await this.postRepository.save(post);
+  }
 
-export const getPostByIdService = async (id: number, userId: string) => {
-  const post = await postRepository.findOneOrFail({
-    where: { id },
-    relations: ["user"],
-  });
+  async findAll(): Promise<Post[]> {
+    return await this.postRepository.find();
+  }
 
-  if (post.user.user_id !== Number(userId))
-    throw new ForbiddenError("Not authorized to view this post");
+  async findById(id: number): Promise<Post | null> {
+    return await this.postRepository.findOneBy({ id });
+  }
 
-  return post;
-};
+  async update(id: number, updatedData: Partial<Post>): Promise<Post | null> {
+    const post = await this.postRepository.findOneBy({ id });
+    if (!post) return null;
 
-export const createPostService = async (
-  userId: string,
-  title: string,
-  content: string
-) => {
-  const user = await userRepository.findOneBy({ user_id: Number(userId) });
-  if (!user) throw new NotFoundError("User not found");
+    Object.assign(post, updatedData);
+    return await this.postRepository.save(post);
+  }
 
-  const post = new Post();
-  post.title = title;
-  post.content = content;
-  post.user = user;
+  async delete(id: number): Promise<boolean> {
+    const result = await this.postRepository.delete(id);
+    return result.affected ? result.affected > 0 : false;
+  }
 
-  await validateEntity(post); // Validate before saving
-  return await postRepository.save(post);
-};
-
-export const updatePostService = async (
-  id: number,
-  userId: string,
-  title?: string,
-  content?: string
-) => {
-  const post = await postRepository.findOneOrFail({
-    where: { id },
-    relations: ["user"],
-  });
-
-  if (post.user.user_id !== Number(userId))
-    throw new ForbiddenError("Not authorized");
-
-  if (title) post.title = title;
-  if (content) post.content = content;
-
-  await validateEntity(post); // Validate before saving
-  return await postRepository.save(post);
-};
-
-export const deletePostService = async (id: number, userId: string) => {
-  const post = await postRepository.findOneOrFail({
-    where: { id },
-    relations: ["user"],
-  });
-
-  if (post.user.user_id !== Number(userId))
-    throw new ForbiddenError("Not authorized");
-
-  await postRepository.remove(post);
-  return { message: "Post deleted successfully" };
-};
+  async findByIdWithUser(id: number): Promise<Post | null> {
+    return this.postRepository.findOne({
+      where: { id },
+      relations: ["user"],
+    });
+  }
+}
