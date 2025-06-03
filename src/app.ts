@@ -1,11 +1,12 @@
 import "reflect-metadata";
 import express, { Express } from "express";
 import * as dotenv from "dotenv";
-import usersRouter from "./routes/users";
 import { initializeDatabase } from "./config/db";
 import { errorHandler } from "./middlewares/errorHandler";
-import authRouter from "./routes/auth";
-import postRoutes from "./routes/postRoutes";
+import routes from './routes';
+import swaggerUi from "swagger-ui-express";
+import swaggerDocument from "./swagger-output.json";
+import cors from "cors";
 
 dotenv.config();
 
@@ -16,11 +17,14 @@ const PORT: number = parseInt(process.env.PORT || "5000");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.use("/users", usersRouter);
-app.use("/auth", authRouter);
-app.use("/api", postRoutes)
+app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
+app.use(express.json({ limit: "16kb" }));
+app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(express.static("public"));
 
+app.use("/api/v1", routes);
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Error handling middleware
 app.use(errorHandler);
 
