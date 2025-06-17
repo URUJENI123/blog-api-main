@@ -3,7 +3,7 @@ import express, { Express } from "express";
 import * as dotenv from "dotenv";
 import { initializeDatabase } from "./config/db";
 import { errorHandler } from "./middlewares/errorHandler";
-import routes from './routes';
+import routes from './routes/index';
 import swaggerUi from "swagger-ui-express";
 import swaggerDocument from "./swagger-output.json";
 import cors from "cors";
@@ -24,6 +24,11 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 
 app.use("/api/v1", routes);
+
+const router = express.Router();
+
+router.use("/api", routes);
+
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Error handling middleware

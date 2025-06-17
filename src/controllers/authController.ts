@@ -45,7 +45,7 @@ export const signup = asyncHandler(
       throw new ConflictError("User with this email already exists");
     }
 
-    const newUser = await authService.create({ name, email, password });
+    const newUser = await authService.create({ name, email, password,role });
     const token = generateVerifyToken({ userId: newUser.id, email: newUser.email });
     const verifyLink = `${process.env.FRONTEND_URL}/auth/verify-email/${token}`;
     await sendVerificationEmail(newUser.email, verifyLink);

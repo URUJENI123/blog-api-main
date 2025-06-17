@@ -9,15 +9,16 @@ interface AuthRequest extends Request {
 export const authorize = (
   allowedRoles: ("user" | "admin")[]
 ): RequestHandler => {
-  return (req: AuthRequest, res: Response, next: NextFunction) =>  {
+  return (req, res, next) =>  {
+    const authReq = req as AuthRequest;
     // If user is not authenticated at all
-    if (!req.user) {
+    if (!authReq.user) {
       res.status(401).json({ message: "Not authenticated" });
       return;
     }
 
     // If role is not authorized?
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!allowedRoles.includes(authReq.user.role)) {
       res
         .status(403)
         .json({ message: "This User has insufficient permission" });
